@@ -10,11 +10,23 @@ PROFILE = default
 PROJECT_NAME = text_preproc
 PYTHON_INTERPRETER = python3
 
+DATASET=yelp-dataset-11
+
+RAW_DATA_PATH=$(DATA_REPO)/raw/$(DATASET)
+EXTERNAL_DATA_PATH=$(DATA_REPO)/external/$(DATASET)
+INTERIM_DATA_PATH=$(DATA_REPO)/interim/$(DATASET)
+PROCESSED_DATA_PATH=$(DATA_REPO)/processed/$(DATASET)
+
 ifeq (,$(shell which conda))
 HAS_CONDA=False
 else
 HAS_CONDA=True
 endif
+
+ifndef DATA_REPO
+$(error DATA_REPO environment var needs to be set)
+endif
+
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -45,6 +57,17 @@ ifeq (default,$(PROFILE))
 else
 	aws s3 sync data/ s3://$(BUCKET)/data/ --profile $(PROFILE)
 endif
+
+## Sync with raw data mountpoint
+pull_data:
+	find $(EXTERNAL_DATA_PATH)/ -name "*json" -exec ln -sf {} data/external/ \;
+	rsync -az $(INTERIM_DATA_PATH)/ data/interim/
+	rsync -az $(PROCESSED_DATA_PATH)/ data/processed/
+
+## Sync with raw data mountpoint
+push_data:
+	rsync -az --delete data/interim/ $(INTERIM_DATA_PATH)/
+	rsync -az --delete data/processed/ $(PROCESSED_DATA_PATH)/
 
 ## Download Data from S3
 sync_data_from_s3:
